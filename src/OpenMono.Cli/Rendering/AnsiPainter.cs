@@ -146,10 +146,17 @@ internal sealed partial class AnsiPainter(AppConfig config, SessionState session
     internal static string[] WrapInput(string text, int wrapW)
     {
         if (text.Length == 0) return [""];
+        var lineCount = text.Count(c => c == '\n') + 1;
+        if (lineCount >= 4)
+            return [$"[{lineCount} Lines Copied]"];
         var lines = new List<string>();
-        for (var pos = 0; pos < text.Length; pos += wrapW)
-            lines.Add(text.Substring(pos, Math.Min(wrapW, text.Length - pos)));
-        return [.. lines];
+        foreach (var segment in text.Split('\n'))
+        {
+            if (segment.Length == 0) { lines.Add(""); continue; }
+            for (var pos = 0; pos < segment.Length; pos += wrapW)
+                lines.Add(segment.Substring(pos, Math.Min(wrapW, segment.Length - pos)));
+        }
+        return lines.Count == 0 ? [""] : [.. lines];
     }
 
     internal static List<string> Wrap(string text, int w)
@@ -845,17 +852,29 @@ internal sealed partial class AnsiPainter(AppConfig config, SessionState session
             var wrapW       = InputWrapWidth(mainW);
             var wrapped     = WrapInput(text, wrapW);
             var contentRows = Math.Clamp(wrapped.Length, 1, 5);
+            var isCollapsed = text.Count(c => c == '\n') + 1 >= 4;
 
             var firstContentRow = Math.Max(1, _th - contentRows - 2);
-            var cursorRow       = Math.Min(cursor / wrapW, contentRows - 1);
-            var cursorCol       = cursor % wrapW;
+
+            int cursorRow, cursorCol;
+            if (isCollapsed)
+            {
+                cursorRow = 0;
+                cursorCol = wrapped[0].Length;
+            }
+            else
+            {
+                (cursorRow, cursorCol) = ComputeInputCursorPos(text, cursor, wrapW);
+                cursorRow = Math.Min(cursorRow, contentRows - 1);
+            }
 
             var sb = new StringBuilder((wrapW + 20) * contentRows + 32);
             for (var r = 0; r < contentRows; r++)
             {
                 var absRow   = Math.Max(1, firstContentRow + r);
                 var lineText = r < wrapped.Length ? wrapped[r] : "";
-                sb.Append($"{E}[{absRow};3H{BgInput}{Fw}{lineText}");
+                sb.Append($"{E}[{absRow};3H{BgInput}");
+                sb.Append(isCollapsed ? $"{Fk}{IT}{lineText}" : $"{Fw}{lineText}");
                 sb.Append(new string(' ', Math.Max(0, wrapW - lineText.Length)));
                 sb.Append(R);
             }
@@ -868,6 +887,18 @@ internal sealed partial class AnsiPainter(AppConfig config, SessionState session
         {
             Log.Error("DoDrawInputText failed", ex);
         }
+    }
+
+    private static (int row, int col) ComputeInputCursorPos(string text, int cursor, int wrapW)
+    {
+        var row = 0;
+        var col = 0;
+        for (var i = 0; i < cursor && i < text.Length; i++)
+        {
+            if (text[i] == '\n') { row++; col = 0; }
+            else { col++; if (col >= wrapW) { row++; col = 0; } }
+        }
+        return (row, col);
     }
 
     private void PaintConvArea(StringBuilder sb, int w, int h)
@@ -1018,6 +1049,7 @@ internal sealed partial class AnsiPainter(AppConfig config, SessionState session
         var wrapW       = InputWrapWidth(w);
         var wrapped     = WrapInput(currentText, wrapW);
         var contentRows = Math.Clamp(wrapped.Length, 1, 5);
+        var isCollapsed = currentText.Count(c => c == '\n') + 1 >= 4;
         var divider     = $"{BgInput}{Fk}{new string('─', w)}{R}";
 
         sb.Append($"{E}[{startRow + 1};1H{divider}");
@@ -1026,7 +1058,8 @@ internal sealed partial class AnsiPainter(AppConfig config, SessionState session
         {
             sb.Append($"{E}[{startRow + r + 2};1H");
             var lineText = wrapped.Length > r ? wrapped[r] : "";
-            sb.Append($"{BgInput}{Fbb}│{R}{BgInput} {Fw}{lineText}");
+            sb.Append($"{BgInput}{Fbb}│{R}{BgInput} ");
+            sb.Append(isCollapsed ? $"{Fk}{IT}{lineText}" : $"{Fw}{lineText}");
             sb.Append(new string(' ', Math.Max(0, wrapW - lineText.Length)));
             sb.Append(R);
         }

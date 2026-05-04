@@ -203,7 +203,7 @@ internal sealed class AnsiInputReader(
                 var p = ReadClipboard();
                 if (p is not null)
                 {
-                    _bgInputBuf.Append(p.Replace("\r\n", " ").Replace('\n', ' '));
+                    _bgInputBuf.Append(p.Replace("\r\n", "\n").Replace('\r', '\n'));
                     if (!painter.PaintInProgress) painter.DrawInputText(_bgInputBuf.ToString(), _bgInputBuf.Length);
                 }
                 continue;
@@ -353,7 +353,7 @@ internal sealed class AnsiInputReader(
                     var p = ReadClipboard();
                     if (p is not null)
                     {
-                        var c = p.Replace("\r\n", " ").Replace('\n', ' ').Replace('\r', ' ');
+                        var c = p.Replace("\r\n", "\n").Replace('\r', '\n');
                         buf.Insert(cur, c); cur += c.Length;
                         var ps = buf.ToString();
                         suggestions.UpdateSuggestions(ps, ref sugVis);
