@@ -416,6 +416,13 @@ cmd_agent() {
     cd "$DOCKER_DIR"
     export LLAMA_PORT
 
+    # Load the role written by install.sh so we know if this is an agent-only box.
+    local install_env="$HOME/.openmono/.tmp_install_env"
+    if [[ -f "$install_env" && -z "${OPENMONO_ROLE:-}" ]]; then
+        # shellcheck source=/dev/null
+        source "$install_env"
+    fi
+
     # Read llm.endpoint / llm.api_key from settings so docker-compose uses the
     # configured tunnel instead of the default local llama-server.
     local settings="$HOME/.openmono/settings.json"
@@ -430,11 +437,20 @@ cmd_agent() {
     # If the endpoint is local (no remote configured), make sure llama-server is
     # up and healthy before starting the agent. Skip this entirely for remote/tunnel
     # endpoints — the agent connects outbound and doesn't need a local server.
+    # Also skip on agent-only installs with no endpoint configured: the user must
+    # point at a remote inference server first.
     local effective_endpoint="${OPENMONO_ENDPOINT:-http://llama-server:7474}"
     local local_health="http://localhost:${LLAMA_PORT}/health"
     if [[ "$effective_endpoint" == "http://llama-server:7474" || \
           "$effective_endpoint" == "http://localhost:${LLAMA_PORT}" || \
           "$effective_endpoint" == "http://localhost:7474" ]]; then
+        if [[ "${OPENMONO_ROLE:-}" == "agent" ]]; then
+            warn "No remote inference endpoint configured for agent-only install."
+            warn "Set one before running the agent:"
+            warn "  openmono config set llm.endpoint http://<server-ip>:<port>"
+            warn "  openmono config set llm.api_key  <your-api-key>"
+            exit 1
+        fi
         if ! curl -sf "$local_health" &>/dev/null; then
             info "llama-server not running — starting it now..."
             docker compose up -d llama-server
