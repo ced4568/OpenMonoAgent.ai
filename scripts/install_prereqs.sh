@@ -24,17 +24,7 @@ fi
 
 # Add openmono to PATH for current session
 export PATH="$REPO_DIR:$PATH"
-
-# Add to shell rc files for future sessions (Ubuntu/Linux)
-for rc_file in "$HOME/.bashrc" "$HOME/.zshrc"; do
-    if [ -f "$rc_file" ] && ! grep -q "export PATH=.*$REPO_DIR" "$rc_file"; then
-        {
-            echo ""
-            echo "# OpenMono.ai CLI"
-            echo "export PATH=$REPO_DIR:\$PATH"
-        } >> "$rc_file"
-    fi
-done
+# (RC file updates are handled by openmono cmd_setup after installation completes)
 
 # Configurable NVIDIA driver version (default: 580-server-open)
 DRIVER_VERSION="${DRIVER_VERSION:-580-server-open}"
@@ -153,6 +143,12 @@ fi
 
 step 5 $TOTAL_STEPS "Checking for NVIDIA GPU"
 
+if [[ "${OPENMONO_ROLE:-}" == "agent" ]]; then
+    info "Agent-only role — skipping GPU detection"
+    GPU_MODE=0
+    HAS_NVIDIA_HW=false
+else
+
 HAS_NVIDIA_HW=false
 # Try lspci first (most descriptive)
 if command -v lspci &>/dev/null && lspci 2>/dev/null | grep -qi 'nvidia'; then
@@ -229,7 +225,7 @@ else
 
         if [[ "$_reboot_choice" =~ ^[Yy]$ ]]; then
             echo ""
-            info "After reboot, run: ${BOLD}openmono setup${NC}"
+            info "After reboot, run: ${BOLD}$REPO_DIR/openmono setup${NC}"
             echo ""
             info "Rebooting in 10 seconds (press Ctrl+C to cancel)..."
             sleep 10
@@ -262,6 +258,12 @@ else
         ok "nvidia-container-toolkit installed"
     fi
 fi
+
+fi # end agent-role GPU skip
+
+# Write GPU_MODE back to parent so install.sh doesn't re-detect independently
+mkdir -p "$HOME/.openmono"
+echo "GPU_MODE=$GPU_MODE" > "$HOME/.openmono/.tmp_gpu_mode"
 
 # ── Step 6: Docker ────────────────────────────────────────────────────────────
 
@@ -362,23 +364,18 @@ if [ "$INSTALL_DOCKER_CE" = true ] || ! command -v docker &>/dev/null; then
         run $SUDO systemctl enable --now docker 2>/dev/null || true
     fi
 
-    # Re-exec this script under 'sg docker' so all remaining steps (and the
-    # subsequent install.sh) run with the docker group active. The user
-    # never needs to manually run 'newgrp docker'. exec replaces the current
-    # process; the re-run is fast because every apt/command check hits the
-    # already-installed branch.
-    if ! docker info &>/dev/null 2>&1 && id -nG 2>/dev/null | grep -qw docker; then
-        if command -v sg &>/dev/null && sg docker -c "docker info" &>/dev/null 2>&1; then
-            info "Re-launching with docker group active (no manual 'newgrp' needed)..."
-            exec sg docker -- bash "$0" "$@"
-        else
-            warn "Docker group added but sg activation failed — a shell restart is needed."
-            warn "After this script completes run ONE of the following, then re-run install.sh:"
-            warn "  1. newgrp docker           (activate in current shell)"
-            warn "  2. exec su -l \$USER       (fresh login shell)"
-            warn "  3. Log out and back in"
-        fi
-    fi
+    # Note: docker group activation is handled by the openmono wrapper after
+    # this script exits — it detects the new membership via getent and re-execs
+    # the entire setup under sg docker. Do not re-exec here: re-running this
+    # script would replay interactive prompts (e.g. GPU mode) a second time.
+fi
+
+# Ensure user is in the docker group even when Docker was pre-installed.
+# The openmono wrapper handles sg re-exec after this script exits.
+if command -v docker &>/dev/null && ! id -nG 2>/dev/null | grep -qw docker; then
+    run $SUDO groupadd docker 2>/dev/null || true
+    run $SUDO usermod -aG docker "$USER" || true
+    ok "Added '$USER' to the docker group"
 fi
 
 if docker compose version &>/dev/null 2>&1; then
@@ -485,33 +482,13 @@ if [ "$HAS_NVIDIA_HW" = true ]; then
     check_installed nvidia-smi
 fi
 
-# Check if docker is accessible without sudo
-DOCKER_NEEDS_GROUP=false
-if command -v docker &>/dev/null; then
-    if ! docker info &>/dev/null 2>&1; then
-        DOCKER_NEEDS_GROUP=true
-    fi
-fi
-
 echo ""
 ok "Prerequisites ready"
-
-if [ "$DOCKER_NEEDS_GROUP" = true ]; then
-    echo ""
-    printf "${YELLOW}%s${NC}\n" "$(printf '─%.0s' $(seq 1 60))"
-    printf "${YELLOW}${BOLD}  Docker Group Activation Required${NC}\n"
-    printf "${YELLOW}%s${NC}\n" "$(printf '─%.0s' $(seq 1 60))"
-    echo ""
-    echo "  The 'sg' command could not activate the docker group automatically."
-    echo "  Run ONE of the following before running install.sh:"
-    echo ""
-    echo "    ${BOLD}newgrp docker${NC}              # Activate in current shell"
-    echo "    ${BOLD}exec su -l \$USER${NC}          # Start fresh login shell"
-    echo "    ${BOLD}Log out and back in${NC}        # Full session refresh"
-    echo ""
-    echo "  After activation, verify with: docker info"
-    echo "  Then run: ./scripts/install.sh"
-    echo ""
-fi
-
+echo ""
 show_log_location
+
+# Write GPU_MODE to the shared env file so install.sh picks it up without re-detecting
+if [[ -n "${OPENMONO_ENV_FILE:-}" ]]; then
+    echo "export GPU_MODE=\"${GPU_MODE:-0}\"" >> "$OPENMONO_ENV_FILE"
+    _log "GPU_MODE=${GPU_MODE:-0} written to env file"
+fi
