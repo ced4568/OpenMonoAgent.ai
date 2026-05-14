@@ -30,6 +30,29 @@ INSTALL_DIR="$(dirname "$SCRIPT_DIR")"  # repo root (parent of scripts/)
 # shellcheck source=lib/log.sh
 source "$SCRIPT_DIR/lib/log.sh"
 
+# MODEL_ACCURACY, MODEL_ALIAS, and _MODEL_LABEL.
+select_model() {
+    case "${1:-0}" in
+        24) MODEL_NAME="Qwen3.6-27B-Q4_K_M.gguf"
+            MODEL_URL="https://huggingface.co/unsloth/Qwen3.6-27B-GGUF/resolve/main/Qwen3.6-27B-Q4_K_M.gguf"
+            MODEL_ACCURACY="full"
+            _MODEL_LABEL="Qwen3.6-27B-Q4_K_M (~15GB) [GPU 24GB+ — full accuracy]" ;;
+        16) MODEL_NAME="Qwen3.6-27B-UD-IQ3_XXS.gguf"
+            MODEL_URL="https://huggingface.co/unsloth/Qwen3.6-27B-GGUF/resolve/main/Qwen3.6-27B-UD-IQ3_XXS.gguf"
+            MODEL_ACCURACY="lower"
+            _MODEL_LABEL="Qwen3.6-27B-UD-IQ3_XXS (~12GB) [GPU 16GB — lower accuracy]" ;;
+        12) MODEL_NAME="Qwen3.5-9B-Q4_K_M.gguf"
+            MODEL_URL="https://huggingface.co/unsloth/Qwen3.5-9B-GGUF/resolve/main/Qwen3.5-9B-Q4_K_M.gguf"
+            MODEL_ACCURACY="lower"
+            _MODEL_LABEL="Qwen3.5-9B-Q4_K_M (~5GB) [GPU 12GB — lower accuracy]" ;;
+        *)  MODEL_NAME="Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf"
+            MODEL_URL="https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/resolve/main/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf"
+            MODEL_ACCURACY="standard"
+            _MODEL_LABEL="Qwen3.6-35B-A3B (~17.6GB) [CPU]" ;;
+    esac
+    MODEL_ALIAS="${MODEL_NAME%.gguf}"
+}
+
 # ── Auto-recover from fresh `usermod -aG docker` ──────────────────────────────
 # Common footgun: install_prereqs.sh just ran `usermod -aG docker $USER`, but
 # the *current* shell's supplementary group list was captured at login and
@@ -188,23 +211,19 @@ ok "Install directory: $INSTALL_DIR"
 next_step "Checking system requirements"
 
 # GPU_MODE is exported by install_prereqs.sh (1 = GPU, 0 = CPU).
-# Query VRAM to determine the right model tier. Only for roles that load a model.
-# Tiers:  24GB+ → Qwen3.6-27B Q4  (full accuracy)
-#         16GB  → Qwen3.6-35B-A3B Q3 + q4 kv cache  (lower accuracy)
-#         12GB  → Qwen3.5-9B Q4 + q4 kv cache        (lower accuracy)
-#         CPU   → Qwen3.6-35B-A3B Q4_K_XL (MoE, 3.5B active params)
 _VRAM_MB=0
 _GPU_TIER=0
 MODEL_NAME=""
 MODEL_ACCURACY=""
+MODEL_ALIAS=""
 if [ "$OPENMONO_ROLE" != "agent" ]; then
     if [ "${GPU_MODE:-0}" = "1" ]; then
         if command -v nvidia-smi &>/dev/null; then
             _VRAM_MB=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null | awk 'NR==1{print $1}')
             _VRAM_MB=${_VRAM_MB:-0}
-            if   [ "$_VRAM_MB" -ge 24000 ]; then _GPU_TIER=24; ok "GPU VRAM: $(( (_VRAM_MB + 512) / 1024 ))GB — full accuracy model (Qwen3.6-27B)"
-            elif [ "$_VRAM_MB" -ge 16000 ]; then _GPU_TIER=16; warn "GPU VRAM: $(( (_VRAM_MB + 512) / 1024 ))GB — lower accuracy model (Qwen3.6-35B-A3B Q3 + q4 kv cache). For best results use 24GB+ VRAM."
-            elif [ "$_VRAM_MB" -ge 12000 ]; then _GPU_TIER=12; warn "GPU VRAM: $(( (_VRAM_MB + 512) / 1024 ))GB — lower accuracy model (Qwen3.5-9B Q4 + q4 kv cache). For best results use 24GB+ VRAM."
+            if   [ "$_VRAM_MB" -ge 24000 ]; then _GPU_TIER=24; ok "GPU VRAM: $(( (_VRAM_MB + 512) / 1024 ))GB — full accuracy tier (24GB+)"
+            elif [ "$_VRAM_MB" -ge 16000 ]; then _GPU_TIER=16; warn "GPU VRAM: $(( (_VRAM_MB + 512) / 1024 ))GB — lower accuracy tier (16GB). For best results use 24GB+ VRAM."
+            elif [ "$_VRAM_MB" -ge 12000 ]; then _GPU_TIER=12; warn "GPU VRAM: $(( (_VRAM_MB + 512) / 1024 ))GB — lower accuracy tier (12GB). For best results use 24GB+ VRAM."
             else
                 warn "GPU mode selected but only $(( (_VRAM_MB + 512) / 1024 ))GB VRAM — minimum is 12GB. Falling back to CPU mode."
                 GPU_MODE=0
@@ -223,6 +242,8 @@ if [ "$OPENMONO_ROLE" != "agent" ]; then
             fi
         fi
     fi
+    select_model "$_GPU_TIER"
+    ok "Model selected: $MODEL_NAME"
 fi
 
 # Display tool versions (prerequisites already verified above)
@@ -266,27 +287,7 @@ cd "$INSTALL_DIR"
 if [ "$OPENMONO_ROLE" != "agent" ]; then
     MODEL_DIR="$INSTALL_DIR/models"
 
-    if [ "$_GPU_TIER" -eq 24 ]; then
-        MODEL_NAME="Qwen3.6-27B-Q4_K_M.gguf"
-        MODEL_URL="https://huggingface.co/unsloth/Qwen3.6-27B-GGUF/resolve/main/Qwen3.6-27B-Q4_K_M.gguf"
-        MODEL_ACCURACY="full"
-        next_step "Downloading Qwen3.6-27B-Q4_K_M (~15GB) [GPU 24GB+ — full accuracy]"
-    elif [ "$_GPU_TIER" -eq 16 ]; then
-        MODEL_NAME="Qwen3.6-27B-UD-IQ3_XXS.gguf"
-        MODEL_URL="https://huggingface.co/unsloth/Qwen3.6-27B-GGUF/resolve/main/Qwen3.6-27B-UD-IQ3_XXS.gguf"
-        MODEL_ACCURACY="lower"
-        next_step "Downloading Qwen3.6-27B-UD-IQ3_XXS (~12GB) [GPU 16GB — lower accuracy]"
-    elif [ "$_GPU_TIER" -eq 12 ]; then
-        MODEL_NAME="Qwen3.5-9B-Q4_K_M.gguf"
-        MODEL_URL="https://huggingface.co/unsloth/Qwen3.5-9B-GGUF/resolve/main/Qwen3.5-9B-Q4_K_M.gguf"
-        MODEL_ACCURACY="lower"
-        next_step "Downloading Qwen3.5-9B-Q4_K_M (~5GB) [GPU 12GB — lower accuracy]"
-    else
-        MODEL_NAME="qwen3.6-35b-a3b-ud-q4_k_xl.gguf"
-        MODEL_URL="https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/resolve/main/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf"
-        MODEL_ACCURACY="standard"
-        next_step "Downloading Qwen3.6-35B-A3B (~17.6GB) [CPU]"
-    fi
+    next_step "Downloading $_MODEL_LABEL"
 
     # Dev override: fetch from local mirror at http://<host>/models/<filename>
     if [ -n "${OPENMONO_MODEL_MIRROR:-}" ]; then
@@ -406,25 +407,23 @@ if [ "$OPENMONO_ROLE" != "agent" ]; then
         info "CPU mode"
     fi
 
-OVERRIDE_FILE="$INSTALL_DIR/docker/docker-compose.override.yml"
-# Derive a clean alias from the filename (strip .gguf) so /props returns the right name
-MODEL_ALIAS="${MODEL_NAME%.gguf}"
-
-if [ "${GPU_MODE:-0}" = "1" ]; then
-    # 24GB tier: q8 kv cache (high quality); 16GB/12GB tiers: q4 kv cache (saves VRAM)
-    if [ "$_GPU_TIER" -ge 24 ]; then
-        _KV_K="q8_0"; _KV_V="q8_0"
-        _CTX=196608
-    elif [ "$_GPU_TIER" -ge 16 ]; then
-        _KV_K="q4_0"; _KV_V="q4_0"
-        _CTX=180224
-    else
-        _KV_K="q4_0"; _KV_V="q4_0"
-        _CTX=196608
-    fi
-    [ "$MODEL_ACCURACY" = "lower" ] && info "Lower accuracy model selected — q4 kv cache enabled to fit $(( (_VRAM_MB + 512) / 1024 ))GB VRAM"
-    info "Writing GPU override: $OVERRIDE_FILE"
-    cat > "$OVERRIDE_FILE" <<EOF
+    OVERRIDE_FILE="$INSTALL_DIR/docker/docker-compose.override.yml"
+    
+    if [ "${GPU_MODE:-0}" = "1" ]; then
+        # 24GB tier: q8 kv cache (high quality); 16GB/12GB tiers: q4 kv cache (saves VRAM)
+        if [ "$_GPU_TIER" -ge 24 ]; then
+            _KV_K="q8_0"; _KV_V="q8_0"
+            _CTX=196608
+        elif [ "$_GPU_TIER" -ge 16 ]; then
+            _KV_K="q4_0"; _KV_V="q4_0"
+            _CTX=180224
+        else
+            _KV_K="q4_0"; _KV_V="q4_0"
+            _CTX=196608
+        fi
+        [ "$MODEL_ACCURACY" = "lower" ] && info "Lower accuracy model selected — q4 kv cache enabled to fit $(( (_VRAM_MB + 512) / 1024 ))GB VRAM"
+        info "Writing GPU override: $OVERRIDE_FILE"
+        cat > "$OVERRIDE_FILE" <<EOF
 # GPU configuration (auto-generated by install.sh — ${MODEL_ACCURACY:-full} accuracy)
 services:
   llama-server:
