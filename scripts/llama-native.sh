@@ -82,25 +82,26 @@ _native_start_llama() {
 # Args: $1 = port (optional, defaults to LLAMA_PORT)
 _native_stop_llama() {
     local port="${1:-${LLAMA_NATIVE_PORT:-7474}}"
-    local pid proc_name
 
-    # Find the process actually LISTENING on the port (not just connected to it)
-    pid=$(lsof -i ":${port}" 2>/dev/null | awk '$9 ~ /LISTEN/ {print $2; exit}' || true)
+    # Check if llama-server is actually responding on the port (best indicator that it's really running)
+    if ! curl -sf "http://localhost:${port}/health" &>/dev/null; then
+        warn "llama-server is not responding on port ${port}"
+        return 1
+    fi
+
+    # Find llama-server process by name (more reliable than port-based lookup)
+    local pid
+    pid=$(pgrep -f "llama-server.*--port.*${port}" 2>/dev/null | head -1 || true)
+
     if [[ -z "$pid" ]]; then
-        warn "llama-server is not running on port ${port}"
+        warn "llama-server process not found (port ${port} may be in use by something else)"
         return 1
     fi
 
-    proc_name=$(ps -p "$pid" -o comm= 2>/dev/null || true)
-    if [[ "$proc_name" == *"llama-server"* ]]; then
-        info "Stopping llama-server (PID $pid) on port ${port}..."
-        kill "$pid" 2>/dev/null || true
-        sleep 1
-        ok "Stopped"
-    else
-        warn "Port ${port} is listening to '${proc_name}' (PID $pid) — not llama-server"
-        return 1
-    fi
+    info "Stopping llama-server (PID $pid) on port ${port}..."
+    kill "$pid" 2>/dev/null || true
+    sleep 1
+    ok "Stopped"
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -111,16 +112,10 @@ native_cmd_start() {
     _native_load_config || return 1
     local port="${LLAMA_NATIVE_PORT:-7474}"
 
-    if lsof -i ":${port}" &>/dev/null 2>&1; then
-        local pid proc_name
-        pid=$(lsof -ti ":${port}" 2>/dev/null | head -1)
-        proc_name=$(ps -p "$pid" -o comm= 2>/dev/null || true)
-        if [[ "$proc_name" == *"llama-server"* ]]; then
-            ok "llama-server already running on port ${port}"
-            return 0
-        fi
-        warn "Port ${port} in use by different process ($proc_name, PID $pid)"
-        return 1
+    # Check if llama-server is already healthy (best indicator)
+    if curl -sf "http://localhost:${port}/health" &>/dev/null; then
+        ok "llama-server already running on port ${port}"
+        return 0
     fi
 
     _native_start_llama || return 1
@@ -225,10 +220,6 @@ native_cmd_agent() {
 
     # If llama-server is not running, start it
     if ! curl -sf "http://localhost:${port}/health" &>/dev/null; then
-        if lsof -i ":${port}" &>/dev/null 2>&1; then
-            warn "Port ${port} in use by something else"
-            return 1
-        fi
         info "llama-server not running — starting it (Metal, model load: 1–3 min)..."
         _native_start_llama || return 1
         info "Waiting for llama-server to be healthy..."
