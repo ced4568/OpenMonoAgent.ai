@@ -46,6 +46,13 @@ _native_start_llama() {
     local cpu_threads
     cpu_threads=$(sysctl -n hw.physicalcpu 2>/dev/null || echo 4)
 
+    # Read API key from docker/.env (single source of truth)
+    local api_key=""
+    local docker_env="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}/docker/.env"
+    if [[ -f "$docker_env" ]]; then
+        api_key=$(grep '^LLAMA_API_KEY=' "$docker_env" 2>/dev/null | cut -d= -f2- | tr -d '[:space:]' || true)
+    fi
+
     info "Starting llama-server (Metal) — model: $MODEL_NAME"
     nohup llama-server \
         --model "$model_file" --alias "${MODEL_ALIAS:-${MODEL_NAME%.gguf}}" \
@@ -56,7 +63,7 @@ _native_start_llama() {
         --flash-attn on \
         --cache-type-k q8_0 --cache-type-v q8_0 \
         --parallel 1 --jinja --reasoning off --metrics \
-        ${LLAMA_API_KEY:+--api-key "${LLAMA_API_KEY}"} \
+        ${api_key:+--api-key "${api_key}"} \
         > "$log_file" 2>&1 &
     local pid=$!
     disown $pid
@@ -76,20 +83,22 @@ _native_start_llama() {
 _native_stop_llama() {
     local port="${1:-${LLAMA_NATIVE_PORT:-7474}}"
     local pid proc_name
-    pid=$(lsof -ti ":${port}" 2>/dev/null | head -1 || true)
-    if [[ -n "$pid" ]]; then
-        proc_name=$(ps -p "$pid" -o comm= 2>/dev/null || true)
-        if [[ "$proc_name" == *"llama-server"* ]]; then
-            info "Stopping llama-server (PID $pid) on port ${port}..."
-            kill "$pid" 2>/dev/null || true
-            sleep 1
-            ok "Stopped"
-        else
-            warn "Port ${port} is in use by '${proc_name}' (PID $pid) — not llama-server"
-            return 1
-        fi
-    else
+
+    # Find the process actually LISTENING on the port (not just connected to it)
+    pid=$(lsof -i ":${port}" 2>/dev/null | awk '$9 ~ /LISTEN/ {print $2; exit}' || true)
+    if [[ -z "$pid" ]]; then
         warn "llama-server is not running on port ${port}"
+        return 1
+    fi
+
+    proc_name=$(ps -p "$pid" -o comm= 2>/dev/null || true)
+    if [[ "$proc_name" == *"llama-server"* ]]; then
+        info "Stopping llama-server (PID $pid) on port ${port}..."
+        kill "$pid" 2>/dev/null || true
+        sleep 1
+        ok "Stopped"
+    else
+        warn "Port ${port} is listening to '${proc_name}' (PID $pid) — not llama-server"
         return 1
     fi
 }
@@ -247,17 +256,17 @@ native_cmd_tunnel_rotate_key() {
     local new_key
     new_key="$(openssl rand -hex 24)"
 
-    # Update settings.json with new API key (settings.json is the single source of truth for native)
-    python3 - "$HOME/.openmono/settings.json" "$new_key" <<'PYEOF'
-import json, sys
-path, new_key = sys.argv[1:3]
-with open(path) as f:
-    cfg = json.load(f)
-cfg.setdefault("inference", {})["api_key"] = new_key
-with open(path, "w") as f:
-    json.dump(cfg, f, indent=2)
-PYEOF
-    ok "LLAMA_API_KEY rotated in settings.json"
+    # Update docker/.env with new API key (single source of truth)
+    local docker_env="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}/docker/.env"
+    if [[ ! -f "$docker_env" ]]; then
+        mkdir -p "$(dirname "$docker_env")"
+        touch "$docker_env"
+    fi
+    grep -v '^LLAMA_API_KEY=' "$docker_env" > /tmp/env.tmp 2>/dev/null || true
+    echo "LLAMA_API_KEY=$new_key" >> /tmp/env.tmp
+    mv /tmp/env.tmp "$docker_env"
+    chmod 0600 "$docker_env"
+    ok "LLAMA_API_KEY rotated in docker/.env"
 
     # Stop and restart llama-server with new key
     local pid proc_name

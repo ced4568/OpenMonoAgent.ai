@@ -377,8 +377,18 @@ if [ "$OPENMONO_ROLE" != "agent" ]; then
     mkdir -p "$(dirname "$SETTINGS_FILE")"
     [ ! -f "$SETTINGS_FILE" ] && echo '{}' > "$SETTINGS_FILE"
 
-    # Generate a new API key for this install
+    # Generate a new API key for this install (stored in docker/.env — single source of truth)
     LLAMA_API_KEY="$(openssl rand -hex 24)"
+    ENV_FILE="$INSTALL_DIR/docker/.env"
+    mkdir -p "$(dirname "$ENV_FILE")"
+    if [ ! -f "$ENV_FILE" ]; then
+        touch "$ENV_FILE"
+    fi
+    # Remove existing LLAMA_API_KEY if present, then add the new one
+    grep -v '^LLAMA_API_KEY=' "$ENV_FILE" > /tmp/env.tmp 2>/dev/null || true
+    echo "LLAMA_API_KEY=$LLAMA_API_KEY" >> /tmp/env.tmp
+    mv /tmp/env.tmp "$ENV_FILE"
+    chmod 0600 "$ENV_FILE"
 
     python3 - "$SETTINGS_FILE" \
         "${LLAMA_PORT:-7474}" \
@@ -392,14 +402,14 @@ path, port, model_name, model_alias, ctx_size, install_dir, api_key = sys.argv[1
 with open(path) as f:
     cfg = json.load(f)
 cfg.setdefault("llm", {})["endpoint"] = f"http://host.docker.internal:{port}"
+cfg.setdefault("llm", {})["api_key"] = api_key
 cfg["inference"] = {
     "mode": "native-metal",
     "model_name": model_name,
     "model_alias": model_alias,
     "ctx_size": int(ctx_size),
     "port": int(port),
-    "install_dir": install_dir,
-    "api_key": api_key
+    "install_dir": install_dir
 }
 with open(path, "w") as f:
     json.dump(cfg, f, indent=2)
@@ -408,7 +418,7 @@ PYEOF
     detail "  model     : $MODEL_NAME"
     detail "  ctx_size  : $_CTX_SIZE"
     detail "  endpoint  : http://host.docker.internal:${LLAMA_PORT:-7474}"
-    detail "  api_key   : [generated, stored in settings.json]"
+    detail "  api_key   : [generated, stored in docker/.env]"
 fi
 
 # ── Step 7: Build Docker images ────────────────────────────────────────────────
