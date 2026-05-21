@@ -3,26 +3,26 @@ using OpenMono.Session;
 
 namespace OpenMono.Acp;
 
-/// <summary>
-/// Owns one HTTP /turn request lifetime. Builds the per-request
-/// <see cref="IAcpEventSink"/> (this class) and <see cref="IAcpUserInteraction"/>
-/// (an <see cref="AcpUserInteractionForwarder"/>) pointed at the request's
-/// <see cref="SseWriter"/>, then runs a ConversationLoop.
-///
-/// Pause-resume: a paused permission / user_input throws
-/// <see cref="PendingUserResponseException"/> out of ConversationLoop; the runner
-/// catches it, syncs state back to AcpSession, and closes the SSE stream. The next
-/// /turn POST resolves the pause (recording the answer in the session-scoped cache),
-/// appends a synthetic Tool message so the LLM API accepts the resumed history, and
-/// re-enters via ContinueTurnAsync.
-///
-/// v1 simplification: when an assistant message has multiple unresolved tool_use
-/// blocks, only the first one is paired with the resolved decision; the rest receive
-/// a generic "deferred — retry to execute" Tool message. Multi-tool turns are rare
-/// in practice (writes tend to be solitary) and the LLM's next response can re-issue
-/// the deferred ones, which the remembered-decision cache then resolves without a
-/// second pause.
-/// </summary>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public sealed class AcpTurnRunner : IAcpEventSink
 {
     private readonly AcpSession _acpSession;
@@ -44,7 +44,7 @@ public sealed class AcpTurnRunner : IAcpEventSink
         _interaction = new AcpUserInteractionForwarder(session, writer, settings.PendingUserResponseTimeout);
     }
 
-    // ── Entry points ───────────────────────────────────────────────────────────
+
 
     public async Task RunUserMessageAsync(string userText, CancellationToken ct)
     {
@@ -68,9 +68,9 @@ public sealed class AcpTurnRunner : IAcpEventSink
         if (!_acpSession.TryResolvePause(id, new AcpPermissionResponse(allow)))
             throw new InvalidOperationException($"failed to resolve pause id: {id}");
 
-        // Remember the decision so the LLM's re-issued tool call on resume doesn't
-        // re-pause: AcpUserInteractionForwarder.RequestPermissionAsync checks this
-        // cache first and returns the value without emitting another event.
+
+
+
         _acpSession.RememberPermission(ctx.ContextKey, allow);
 
         AppendSyntheticToolMessages(allow
@@ -96,7 +96,7 @@ public sealed class AcpTurnRunner : IAcpEventSink
 
         _acpSession.RememberUserInput(ctx.ContextKey, value);
 
-        // For AskUser, the answer IS the tool's result — no "re-issue" needed.
+
         AppendSyntheticToolMessages(value);
 
         await DriveLoopAsync(ct);
@@ -107,7 +107,7 @@ public sealed class AcpTurnRunner : IAcpEventSink
         _acpSession.CancelAllPending();
     }
 
-    // ── Loop driver ────────────────────────────────────────────────────────────
+
 
     private async Task DriveLoopAsync(CancellationToken ct)
     {
@@ -116,23 +116,23 @@ public sealed class AcpTurnRunner : IAcpEventSink
 
         try
         {
-            // ContinueTurnAsync (rather than RunTurnAsync) — the User message and TurnCount
-            // bump already happened in RunUserMessageAsync, and resumed turns inherit the
-            // session as-is.
+
+
+
             await loop.ContinueTurnAsync(ct);
             SyncBackToAcpSession(sessionState);
             await _writer.WriteEventAsync("done", new { });
         }
         catch (PendingUserResponseException)
         {
-            // Forwarder already wrote permission_request / user_input_request before throwing.
-            // Sync state but skip the `done` event; the stream closes here and the next /turn
-            // POST resolves the pause and re-enters DriveLoopAsync.
+
+
+
             SyncBackToAcpSession(sessionState);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            // Client disconnect or explicit abort. Session stays valid for resume.
+
             SyncBackToAcpSession(sessionState);
         }
         catch (Exception e)
@@ -142,14 +142,14 @@ public sealed class AcpTurnRunner : IAcpEventSink
         }
     }
 
-    // ── History plumbing ───────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Append synthetic Tool messages for every unresolved tool_use in the last
-    /// assistant message. The first unresolved tool_use carries the actual
-    /// <paramref name="resolutionContent"/>; the rest receive a generic
-    /// "Execution deferred" so the LLM API accepts the history shape.
-    /// </summary>
+
+
+
+
+
+
+
     private void AppendSyntheticToolMessages(string resolutionContent)
     {
         var lastAssistant = _acpSession.Messages
@@ -197,7 +197,7 @@ public sealed class AcpTurnRunner : IAcpEventSink
         foreach (var t in ss.Todos) _acpSession.Todos.Add(t);
     }
 
-    // ── IAcpEventSink: every method forwards to a single SSE event ─────────────
+
 
     public Task OnTextDeltaAsync(string content)
         => _writer.WriteEventAsync("text_delta", new { content });

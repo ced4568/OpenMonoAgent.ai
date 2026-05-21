@@ -9,7 +9,7 @@ namespace OpenMono.Tests.Acp;
 
 public sealed class AcpUserInteractionForwarderTests
 {
-    // ── AcpUserInteractionForwarder ────────────────────────────────────────────
+
 
     [Fact]
     public async Task RequestPermissionAsync_emits_permission_request_event_then_throws()
@@ -67,12 +67,12 @@ public sealed class AcpUserInteractionForwarderTests
         var (forwarder, _, body) = BuildForwarder();
 
         try { await forwarder.RequestPermissionAsync("FileRead", "src/auth.ts", dangerous: false, CancellationToken.None); }
-        catch (PendingUserResponseException) { /* expected */ }
+        catch (PendingUserResponseException) {  }
 
         ParseSingleEvent(body).Data.GetProperty("dangerous").GetBoolean().Should().BeFalse();
     }
 
-    // ── AcpInputReaderAdapter ──────────────────────────────────────────────────
+
 
     [Fact]
     public async Task Adapter_maps_RequestPermission_true_to_PermissionResponse_Allow()
@@ -123,11 +123,11 @@ public sealed class AcpUserInteractionForwarderTests
 
         (await adapter.AskUserAsync("which algorithm?", CancellationToken.None)).Should().Be("AES-256-GCM");
 
-        fake.UserInputResult = null; // user cancelled
+        fake.UserInputResult = null;
         (await adapter.AskUserAsync("again?", CancellationToken.None)).Should().Be(string.Empty);
     }
 
-    // ── Helpers ────────────────────────────────────────────────────────────────
+
 
     private static (AcpUserInteractionForwarder forwarder, AcpSession session, MemoryStream body) BuildForwarder()
     {

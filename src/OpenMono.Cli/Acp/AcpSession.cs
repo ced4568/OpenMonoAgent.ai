@@ -4,11 +4,11 @@ using OpenMono.Session;
 
 namespace OpenMono.Acp;
 
-/// <summary>
-/// Per-client ACP session. Persisted fields capture only the state the agent needs to
-/// resume a conversation after a container restart; the pause-resume primitives
-/// (TurnLock, _pending) are runtime-only and rebuilt on every load.
-/// </summary>
+
+
+
+
+
 public sealed class AcpSession
 {
     public required string Id { get; init; }
@@ -20,18 +20,18 @@ public sealed class AcpSession
     public List<TodoItem> Todos { get; init; } = new();
     public List<Message> Messages { get; init; } = new();
 
-    /// <summary>Serializes the single turn-in-flight invariant. One /turn per session at a time.</summary>
+
     [JsonIgnore]
     public SemaphoreSlim TurnLock { get; } = new(1, 1);
 
-    /// <summary>
-    /// Pause-resume registry. Keyed by pause id (e.g. <c>perm_abc</c> / <c>ask_xyz</c>).
-    /// Runtime-only: a paused conversation cannot survive a container restart because the
-    /// awaiting TaskCompletionSource lives only in this process. <c>ContextKey</c> stashes
-    /// what was asked (e.g. <c>"Bash|rm /tmp/file"</c> or the AskUser question text) so
-    /// AcpTurnRunner can remember the decision under that key for the resumed loop's
-    /// duplicate prompt.
-    /// </summary>
+
+
+
+
+
+
+
+
     [JsonIgnore]
     private readonly ConcurrentDictionary<string, PendingPause> _pending = new();
 
@@ -65,12 +65,12 @@ public sealed class AcpSession
         _pending.Clear();
     }
 
-    /// <summary>
-    /// Stash a permission decision (<c>true</c> = Allow) under the context key the original
-    /// pause was registered with. The <see cref="AcpUserInteractionForwarder"/> consults this
-    /// cache before pausing again, so the LLM's re-issued tool call after a resume picks up
-    /// the same decision without another round-trip to the client.
-    /// </summary>
+
+
+
+
+
+
     public void RememberPermission(string contextKey, bool allow)
         => _rememberedPermissions[contextKey] = allow;
 
@@ -89,11 +89,11 @@ public sealed class AcpSession
         TaskCompletionSource<AcpPauseResponse> Tcs);
 }
 
-/// <summary>
-/// Client response to a paused turn. The base type lives in OpenMono.Acp to avoid colliding
-/// with <see cref="OpenMono.Permissions.PermissionResponse"/> (an enum) — every concrete
-/// subtype here is prefixed with <c>Acp</c> for the same reason.
-/// </summary>
+
+
+
+
+
 public abstract record AcpPauseResponse;
 
 public sealed record AcpPermissionResponse(bool Allow) : AcpPauseResponse;

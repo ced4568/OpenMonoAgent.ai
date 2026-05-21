@@ -7,12 +7,12 @@ using OpenMono.Tools;
 
 namespace OpenMono.Acp;
 
-/// <summary>
-/// Builds <see cref="ConversationLoop"/> instances configured for ACP turns. Holds the
-/// constructor-bound dependencies (LLM client, tool registry, app config, etc.) so
-/// <see cref="AcpTurnRunner"/> only has to supply the per-turn arguments
-/// (session state, event sink, user-interaction forwarder).
-/// </summary>
+
+
+
+
+
+
 public sealed class ConversationLoopFactory
 {
     private readonly ILlmClient _llm;
@@ -38,13 +38,13 @@ public sealed class ConversationLoopFactory
         _liveFeedback = liveFeedback;
     }
 
-    /// <summary>
-    /// Construct a loop wired for an ACP turn. The supplied <paramref name="interaction"/>
-    /// causes ConversationLoop to swap in <see cref="AcpInputReaderAdapter"/> and rebuild
-    /// PermissionEngine over it (see <c>ConversationLoop</c>'s ACP-mode branch). The
-    /// <paramref name="placeholderPermissions"/> argument is unused in that branch but
-    /// must be non-null to satisfy the constructor signature.
-    /// </summary>
+
+
+
+
+
+
+
     public ConversationLoop Create(SessionState session, IAcpEventSink sink, IAcpUserInteraction interaction)
     {
         var placeholderPermissions = new PermissionEngine(_config, _output, _input);

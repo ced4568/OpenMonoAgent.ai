@@ -52,9 +52,9 @@ public sealed class SseWriterTests
         var stream = new ConcurrencyDetectingStream();
         var writer = new SseWriter(stream, CancellationToken.None);
 
-        // Fire 16 events concurrently from three "producers" simulating the
-        // mixed traffic from IAcpEventSink (text deltas on worker threads) and
-        // IAcpUserInteraction (forwarder on the dispatcher thread).
+
+
+
         var producers = Enumerable.Range(0, 3).Select(p => Task.Run(async () =>
         {
             for (var i = 0; i < 16; i++)
@@ -65,7 +65,7 @@ public sealed class SseWriterTests
         stream.MaxObservedConcurrency.Should().Be(1,
             "SseWriter's semaphore must prevent concurrent writes to the underlying body stream");
 
-        // Every event block must still be intact and parseable.
+
         var text = Encoding.UTF8.GetString(stream.ToArray());
         var blocks = text.Split("\n\n", StringSplitOptions.RemoveEmptyEntries);
         blocks.Should().HaveCount(48, "3 producers × 16 events = 48 complete event frames");
@@ -79,13 +79,13 @@ public sealed class SseWriterTests
         }
     }
 
-    // ── Helpers ────────────────────────────────────────────────────────────────
+
 
     private sealed class FlushTrackingStream : MemoryStream
     {
         public int FlushCount { get; private set; }
-        // Only count in FlushAsync — Stream's default FlushAsync also calls Flush,
-        // which would double-count if both overrides incremented independently.
+
+
         public override Task FlushAsync(CancellationToken ct)
         {
             FlushCount++;
@@ -93,10 +93,10 @@ public sealed class SseWriterTests
         }
     }
 
-    /// <summary>
-    /// Tracks concurrent entries to WriteAsync; any reentrancy violates the
-    /// SseWriter's contract that writes are serialized via a semaphore.
-    /// </summary>
+
+
+
+
     private sealed class ConcurrencyDetectingStream : MemoryStream
     {
         private int _inFlight;
@@ -110,7 +110,7 @@ public sealed class SseWriterTests
             InterlockedMax(ref _maxObserved, current);
             try
             {
-                // Yield gives other tasks a chance to slip past the lock if it's missing.
+
                 await Task.Yield();
                 await base.WriteAsync(buffer, ct);
             }

@@ -3,17 +3,17 @@ using System.Text.Json.Serialization;
 
 namespace OpenMono.Acp;
 
-/// <summary>
-/// Writes <c>&lt;workspace&gt;/.openmono/agent.lock</c> after Kestrel binds so the VS Code
-/// extension can discover the agent. The lock file records the <b>host-facing</b> port
-/// (which differs from the container-internal port when Docker port-publishes), the
-/// host workspace path (which the extension verifies against the VS Code workspace
-/// folder it's connecting from), and the agent id (used by the extension's
-/// label-ownership rule when deciding whether to stop a container it spawned).
-///
-/// The three pieces of host context come from env vars set by the extension's
-/// <c>docker run</c> command — or by a user's docker-compose file in the manual mode.
-/// </summary>
+
+
+
+
+
+
+
+
+
+
+
 public sealed class AcpLockFileWriter
 {
     private readonly string _path;
@@ -25,10 +25,10 @@ public sealed class AcpLockFileWriter
     {
     }
 
-    /// <summary>
-    /// Test/seam constructor: lets the lock file be written under a temp dir instead
-    /// of the production bind-mount path.
-    /// </summary>
+
+
+
+
     public AcpLockFileWriter(AcpServerSettings settings, string workspaceMount)
     {
         ContainerWorkspace = workspaceMount;
@@ -58,15 +58,15 @@ public sealed class AcpLockFileWriter
     public int HostPort => _payload.port;
     public string ContainerId => _payload.container_id;
 
-    /// <summary>
-    /// The path the agent uses internally to read/write workspace files.
-    /// In Docker this is "/workspace" (the bind-mount). For native runs this is the
-    /// host working directory (same as HostWorkspace). Used by GET /api/v1/discovery
-    /// so the extension can verify the agent's view of the workspace.
-    /// </summary>
+
+
+
+
+
+
     public string ContainerWorkspace { get; }
 
-    /// <summary>Write the lock file. Idempotent; safe to call once Kestrel is listening.</summary>
+
     public void Write()
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
@@ -74,14 +74,14 @@ public sealed class AcpLockFileWriter
         _written = true;
     }
 
-    /// <summary>
-    /// Remove the lock file on graceful shutdown. No-op if Write was never called.
-    /// Best-effort: errors are swallowed so this can run from a finally / IHostedService.StopAsync.
-    /// </summary>
+
+
+
+
     public void TryRemove()
     {
         if (!_written) return;
-        try { File.Delete(_path); } catch { /* best effort */ }
+        try { File.Delete(_path); } catch {  }
     }
 
     private static readonly JsonSerializerOptions LockJsonOpts = new()

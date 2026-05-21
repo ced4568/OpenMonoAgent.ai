@@ -21,7 +21,7 @@ public sealed class AcpLockFileWriterTests : IDisposable
     public void Dispose()
     {
         _env.Dispose();
-        try { Directory.Delete(_tempMount, recursive: true); } catch { /* best effort */ }
+        try { Directory.Delete(_tempMount, recursive: true); } catch {  }
     }
 
     [Fact]
@@ -114,7 +114,7 @@ public sealed class AcpLockFileWriterTests : IDisposable
     {
         Environment.SetEnvironmentVariable("HOST_WORKSPACE_PATH", "/ws");
         var writer = new AcpLockFileWriter(_settings, _tempMount);
-        // Pre-populate a stray file at the would-be path to prove TryRemove leaves it alone.
+
         var path = Path.Combine(_tempMount, ".openmono", "agent.lock");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, "{ \"stale\": true }");
@@ -124,7 +124,7 @@ public sealed class AcpLockFileWriterTests : IDisposable
         File.Exists(path).Should().BeTrue("TryRemove must only remove a file the writer itself wrote");
     }
 
-    // ── Env-var snapshot helper ────────────────────────────────────────────────
+
 
     private sealed class EnvSnapshot : IDisposable
     {

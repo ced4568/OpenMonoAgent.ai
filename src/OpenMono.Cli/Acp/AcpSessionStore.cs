@@ -4,12 +4,12 @@ using OpenMono.Config;
 
 namespace OpenMono.Acp;
 
-/// <summary>
-/// Disk-backed registry of <see cref="AcpSession"/> instances. Sessions are kept in memory
-/// for the hot path and written through to disk on every <see cref="Save"/> so they survive
-/// container restarts when the caller mounts a named volume at <c>/data</c> (per
-/// <see cref="AcpServerSettings.SessionsDirectory"/>).
-/// </summary>
+
+
+
+
+
+
 public sealed class AcpSessionStore : IDisposable
 {
     private readonly string _dir;
@@ -36,7 +36,7 @@ public sealed class AcpSessionStore : IDisposable
         }
     }
 
-    /// <summary>Path the store ultimately resolved to (after settings → fallback chain).</summary>
+
     public string Directory => _dir;
 
     public AcpSession Create(string? model, AppConfig cfg)
@@ -125,18 +125,18 @@ public sealed class AcpSessionStore : IDisposable
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                // Transient read errors are not corruption — leave the file alone.
+
             }
         }
     }
 
-    /// <summary>
-    /// Rename a corrupt JSON file to <c>&lt;id&gt;.json.corrupt</c> so the next startup
-    /// skips it without crashing and a human can inspect it.
-    /// </summary>
+
+
+
+
     private void Quarantine(string path, string reason)
     {
-        _ = reason; // hook for future structured logging
+        _ = reason;
         try
         {
             var corruptPath = path + ".corrupt";
@@ -145,15 +145,15 @@ public sealed class AcpSessionStore : IDisposable
         }
         catch
         {
-            // Best effort: if the rename fails we still excluded the file from _sessions,
-            // so the store stays consistent in memory.
+
+
         }
     }
 
     private static string ResolveSessionsDirectory(AppConfig cfg, AcpServerSettings settings)
     {
-        // Prefer settings.SessionsDirectory (the container mounts a named volume there).
-        // Fall back to <DataDirectory>/acp-sessions for native runs where /data isn't writable.
+
+
         try
         {
             System.IO.Directory.CreateDirectory(settings.SessionsDirectory);

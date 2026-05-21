@@ -4,14 +4,14 @@ using OpenMono.Rendering;
 
 namespace OpenMono.Tui;
 
-/// <summary>
-/// TUI-mode implementation of <see cref="IAcpUserInteraction"/>. Wraps the existing
-/// <see cref="IInputReader"/> prompts (TerminalRenderer / AnsiInputReader) so the
-/// interactive terminal user answers permission and AskUser prompts exactly as before.
-///
-/// ConversationLoop falls back to this when no ACP <see cref="IAcpUserInteraction"/>
-/// is supplied, so the existing TUI flow keeps working unchanged.
-/// </summary>
+
+
+
+
+
+
+
+
 public sealed class TerminalUserInteraction : IAcpUserInteraction
 {
     private readonly IInputReader _input;

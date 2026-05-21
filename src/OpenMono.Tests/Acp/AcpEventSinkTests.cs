@@ -169,7 +169,7 @@ public sealed class AcpEventSinkTests
         sink.ToolEnds[0].ok.Should().BeFalse();
     }
 
-    // ── Helpers ────────────────────────────────────────────────────────────────
+
 
     private static (ConversationLoop loop, SessionState session) BuildLoop(
         IAcpEventSink? sink,

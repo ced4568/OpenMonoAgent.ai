@@ -3,12 +3,12 @@ using System.Text.Json;
 
 namespace OpenMono.Acp;
 
-/// <summary>
-/// Writes SSE-framed events to a response body. A semaphore serializes concurrent writes
-/// from IAcpEventSink callbacks (which can fire from worker threads during LLM streaming)
-/// and IAcpUserInteraction callbacks (which fire from the tool dispatcher) so the bytes
-/// for one event are never interleaved with another.
-/// </summary>
+
+
+
+
+
+
 public sealed class SseWriter
 {
     private readonly Stream _body;

@@ -20,17 +20,17 @@ public sealed class AcpSessionStoreTests : IDisposable
         _sessionsDir = Path.Combine(_tempDir, "acp-sessions");
         _cfg = new AppConfig { DataDirectory = _tempDir };
         _cfg.Llm.Model = "test-model";
-        // Override the default /data/acp-sessions so tests are hermetic regardless of
-        // the host environment (CI, dev machine, container, etc.).
+
+
         _settings = new AcpServerSettings { SessionTtlHours = 24, SessionsDirectory = _sessionsDir };
     }
 
     public void Dispose()
     {
-        try { Directory.Delete(_tempDir, recursive: true); } catch { /* best effort */ }
+        try { Directory.Delete(_tempDir, recursive: true); } catch {  }
     }
 
-    // ── Create / TryGet / Save / Delete ────────────────────────────────────────
+
 
     [Fact]
     public void Create_assigns_id_and_model_and_persists_to_disk()
@@ -195,10 +195,10 @@ public sealed class AcpSessionStoreTests : IDisposable
     [Fact]
     public void Round_trip_preserves_assistant_tool_calls_and_tool_results()
     {
-        // Ensures the JSON serializer handles the nested ToolCalls list on the
-        // assistant Message AND the ToolCallId/ToolName fields on the Tool Message.
-        // GetMessages relies on this projection to fold tool results into the
-        // chat panel's expandable rows.
+
+
+
+
         string id;
         using (var store = new AcpSessionStore(_cfg, _settings, startReaper: false))
         {
@@ -257,7 +257,7 @@ public sealed class AcpSessionStoreTests : IDisposable
         File.Exists(path).Should().BeFalse();
     }
 
-    // ── Corrupt-file quarantine ────────────────────────────────────────────────
+
 
     [Fact]
     public void Hydrate_quarantines_unparseable_json_as_dot_corrupt()
@@ -280,24 +280,24 @@ public sealed class AcpSessionStoreTests : IDisposable
         File.WriteAllText(Path.Combine(_sessionsDir, "sess_bad1.json"), "not json");
         File.WriteAllText(Path.Combine(_sessionsDir, "sess_bad2.json"), "{ \"id\": broken }");
 
-        // Also drop a valid one so we know hydration still surfaces good sessions
-        // even when there are corrupt neighbours.
+
+
         using (var seed = new AcpSessionStore(_cfg, _settings, startReaper: false))
             seed.Create("gpt-4o", _cfg);
 
-        // Re-hydrate from disk and confirm no throw + valid session still loads.
+
         Action ctor = () => { using var _ = new AcpSessionStore(_cfg, _settings, startReaper: false); };
         ctor.Should().NotThrow();
     }
 
-    // ── SessionsDirectory fallback ─────────────────────────────────────────────
+
 
     [Fact]
     public void Constructor_falls_back_to_cfg_DataDirectory_when_settings_dir_unwritable()
     {
-        // Point SessionsDirectory at a path the test process cannot create. On every
-        // POSIX-like OS the test process has permission to read /proc but not to mkdir
-        // arbitrary children of it; on macOS, /System/openmono-... yields the same effect.
+
+
+
         var unwritable = OperatingSystem.IsWindows()
             ? @"Z:\definitely\not\writable\openmono-sessions"
             : "/proc/openmono-sessions-" + Guid.NewGuid().ToString("N");
@@ -309,7 +309,7 @@ public sealed class AcpSessionStoreTests : IDisposable
         Directory.Exists(store.Directory).Should().BeTrue();
     }
 
-    // ── AcpSession pause-resume primitives ─────────────────────────────────────
+
 
     [Fact]
     public async Task RegisterPause_and_TryResolvePause_complete_the_TCS_with_response()
@@ -391,7 +391,7 @@ public sealed class AcpSessionStoreTests : IDisposable
         session.TryGetRememberedUserInput("never-asked").Should().BeNull();
     }
 
-    // ── Helpers ────────────────────────────────────────────────────────────────
+
 
     private static AcpSession NewBareSession() => new()
     {

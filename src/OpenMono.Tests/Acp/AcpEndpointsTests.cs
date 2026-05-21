@@ -33,8 +33,8 @@ public sealed class AcpEndpointsTests : IAsyncLifetime
         Directory.CreateDirectory(_tempDir);
         _port = GetFreePort();
 
-        // AcpLockFileWriter reads these from process env. Save originals so other tests
-        // (and the host) see the same state after we're done.
+
+
         _origWorkspaceEnv = Environment.GetEnvironmentVariable("HOST_WORKSPACE_PATH");
         _origAgentIdEnv = Environment.GetEnvironmentVariable("ACP_AGENT_ID");
         Environment.SetEnvironmentVariable("HOST_WORKSPACE_PATH", _tempDir);
@@ -82,16 +82,16 @@ public sealed class AcpEndpointsTests : IAsyncLifetime
         _llm.Release();
         _client.Dispose();
         await _cts.CancelAsync();
-        try { await _app.StopAsync(); } catch { /* shutdown */ }
+        try { await _app.StopAsync(); } catch {  }
         await _app.DisposeAsync();
 
         Environment.SetEnvironmentVariable("HOST_WORKSPACE_PATH", _origWorkspaceEnv);
         Environment.SetEnvironmentVariable("ACP_AGENT_ID", _origAgentIdEnv);
 
-        try { Directory.Delete(_tempDir, recursive: true); } catch { /* best effort */ }
+        try { Directory.Delete(_tempDir, recursive: true); } catch {  }
     }
 
-    // ── /api/v1/discovery ──────────────────────────────────────────────────────
+
 
     [Fact]
     public async Task GetDiscovery_returns_agent_metadata()
@@ -111,7 +111,7 @@ public sealed class AcpEndpointsTests : IAsyncLifetime
         root.GetProperty("uptime_seconds").GetInt32().Should().BeGreaterThanOrEqualTo(0);
     }
 
-    // ── POST /api/v1/sessions ──────────────────────────────────────────────────
+
 
     [Fact]
     public async Task PostSessions_returns_session_id_and_resolved_model()
@@ -137,14 +137,14 @@ public sealed class AcpEndpointsTests : IAsyncLifetime
     [Fact]
     public async Task PostSessions_ignores_extra_fields_like_client_tools_silently()
     {
-        // Forward-compat: the old protocol shipped client_tools. New endpoint just
-        // ignores it without erroring (extra JSON fields are not a protocol violation).
+
+
         var body = new { model = "gpt-4o", client_tools = new[] { "FileRead", "Bash" } };
         var res = await _client.PostAsJsonAsync("/api/v1/sessions", body);
         res.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // ── GET /api/v1/sessions/{id} ──────────────────────────────────────────────
+
 
     [Fact]
     public async Task GetSession_returns_404_for_missing_id()
@@ -169,15 +169,15 @@ public sealed class AcpEndpointsTests : IAsyncLifetime
         root.GetProperty("plan_mode").GetBoolean().Should().BeFalse();
     }
 
-    // ── GET /api/v1/sessions/{id}/messages ─────────────────────────────────────
+
 
     [Fact]
     public async Task GetMessages_returns_camelCase_history_with_toolCalls_folded_in()
     {
         var sid = await CreateSessionAsync();
 
-        // Inject a synthetic history directly via the store so the test doesn't
-        // depend on an LLM round-trip.
+
+
         var store = _app.Services.GetRequiredService<AcpSessionStore>();
         var session = store.TryGet(sid)!;
         session.Messages.Add(new Message { Role = MessageRole.User, Content = "list files" });
@@ -227,7 +227,7 @@ public sealed class AcpEndpointsTests : IAsyncLifetime
         res.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    // ── POST /api/v1/sessions/{id}/turn ────────────────────────────────────────
+
 
     [Fact]
     public async Task PostTurn_returns_409_when_session_lock_held()
@@ -236,7 +236,7 @@ public sealed class AcpEndpointsTests : IAsyncLifetime
         var store = _app.Services.GetRequiredService<AcpSessionStore>();
         var session = store.TryGet(sid)!;
 
-        // Hold the turn lock manually to simulate an in-flight stream.
+
         await session.TurnLock.WaitAsync();
         try
         {
@@ -277,7 +277,7 @@ public sealed class AcpEndpointsTests : IAsyncLifetime
         session.PendingIds.Should().BeEmpty();
     }
 
-    // ── DELETE /api/v1/sessions/{id} ───────────────────────────────────────────
+
 
     [Fact]
     public async Task DeleteSession_removes_session_from_store_and_returns_204()
@@ -299,7 +299,7 @@ public sealed class AcpEndpointsTests : IAsyncLifetime
         res.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
-    // ── Helpers ────────────────────────────────────────────────────────────────
+
 
     private async Task<string> CreateSessionAsync()
     {
@@ -318,10 +318,10 @@ public sealed class AcpEndpointsTests : IAsyncLifetime
         return port;
     }
 
-    /// <summary>
-    /// LLM stub that suspends StreamChatAsync until <see cref="Release"/> is called.
-    /// Useful for keeping a `/turn` request mid-stream while another assertion runs.
-    /// </summary>
+
+
+
+
     private sealed class HangingLlm : ILlmClient
     {
         private readonly TaskCompletionSource _gate = new();

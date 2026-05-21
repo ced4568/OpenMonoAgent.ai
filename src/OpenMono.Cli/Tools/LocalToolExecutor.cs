@@ -10,23 +10,23 @@ using OpenMono.Utils;
 
 namespace OpenMono.Tools;
 
-/// <summary>
-/// Canonical single-tool execution path. Both <c>ConversationLoop</c> (normal turns,
-/// TUI + ACP) and <c>ToolDispatcher</c> (Playbook-driven turns) route through this
-/// type so the user-visible behaviour around denial / plan-mode / diff / SSE events
-/// is the same regardless of caller.
-///
-/// Lifecycle of one call:
-/// 1. Journal + JSON parse + schema validate + sanity check.
-/// 2. Plan-mode gate (writes blocked when plan mode is on).
-/// 3. Permission check (capability- or level-based). Honours
-///    <see cref="AcpInputReaderAdapter"/> when ACP mode is active.
-/// 4. Cache hit short-circuit for read-only tools.
-/// 5. Pre-hooks → tool.ExecuteAsync → post-hooks.
-/// 6. Result post-processing (artifact persistence, cache put / path invalidate).
-/// 7. Renderer output (start / success / error / diff / content) + journal completion.
-/// 8. <see cref="IAcpEventSink"/> emit (tool_start / tool_end) when set.
-/// </summary>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public sealed class LocalToolExecutor : IToolExecutor
 {
     private readonly TurnJournal _journal;
@@ -138,8 +138,8 @@ public sealed class LocalToolExecutor : IToolExecutor
         }
         _journal.RecordPermissionDecided(call.Id, true);
 
-        // Cache hit — synthesize the same renderer / journal / sink sequence as a fresh run
-        // but with zero duration. Lets the chat panel still show the tool row.
+
+
         if (tool.IsReadOnly && _cache.TryGet(call.Name, input, out var cachedResult) && cachedResult is not null)
         {
             _journal.RecordToolStarted(call.Id);
@@ -206,7 +206,7 @@ public sealed class LocalToolExecutor : IToolExecutor
             {
                 _output.WriteToolSuccess(call.Name);
 
-                // Diff for edit-shaped tools (was missing from this path before consolidation).
+
                 if (result.Diff is not null)
                     _output.WriteToolDiff(result.Diff);
 
@@ -242,18 +242,18 @@ public sealed class LocalToolExecutor : IToolExecutor
         return result;
     }
 
-    /// <summary>
-    /// One-line summary of a tool call's arguments for the <c>tool_start</c> SSE event.
-    /// Aggressive truncation — the full result preview lands separately via
-    /// <c>tool_result_preview</c>.
-    /// </summary>
+
+
+
+
+
     internal static string SummarizeToolArgs(string arguments)
     {
         if (string.IsNullOrEmpty(arguments)) return "";
         var trimmed = arguments.AsSpan().Trim();
         if (trimmed.Length == 0) return "";
         var snippet = trimmed.Length <= 120 ? trimmed.ToString() : trimmed[..120].ToString() + "...";
-        // Collapse multi-line JSON so the chat UI doesn't have to.
+
         return string.Join(" ", snippet.Split(new[] { '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries));
     }
 }

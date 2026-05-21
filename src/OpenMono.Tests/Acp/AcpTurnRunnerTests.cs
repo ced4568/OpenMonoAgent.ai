@@ -70,8 +70,8 @@ public sealed class AcpTurnRunnerTests
         var tools = new ToolRegistry();
         tools.Register(new AskingTool());
 
-        // Round 1: LLM emits the AskingTool call (will pause).
-        // Round 2: LLM (after permission resume) replies with text.
+
+
         var (runner, session, body) = BuildHarness(
             tools: tools,
             llmRounds: new List<List<StreamChunk>>
@@ -122,7 +122,7 @@ public sealed class AcpTurnRunnerTests
     [Fact]
     public async Task ResumeWithPermissionAsync_rejects_kind_mismatch()
     {
-        // Register a UserInput pause then try to resolve it as Permission.
+
         var tools = new ToolRegistry();
         var (runner, session, _) = BuildHarness(tools, new());
 
@@ -138,7 +138,7 @@ public sealed class AcpTurnRunnerTests
     public async Task ResumeWithUserInputAsync_caches_answer_and_appends_synthetic_tool_message()
     {
         var session = NewSession();
-        // Pretend a prior turn ended with an assistant message containing an AskUser tool_use.
+
         session.Messages.Add(new Message { Role = MessageRole.User, Content = "ask me" });
         session.Messages.Add(new Message
         {
@@ -158,7 +158,7 @@ public sealed class AcpTurnRunnerTests
 
         session.TryGetRememberedUserInput("which?").Should().Be("AES-256-GCM");
 
-        // The synthetic Tool message must carry the answer + match the AskUser tool_use id.
+
         var toolMsg = session.Messages.LastOrDefault(m => m.Role == MessageRole.Tool);
         toolMsg.Should().NotBeNull();
         toolMsg!.ToolCallId.Should().Be("call_ask");
@@ -180,7 +180,7 @@ public sealed class AcpTurnRunnerTests
         session.PendingIds.Should().BeEmpty();
     }
 
-    // ── Harness ────────────────────────────────────────────────────────────────
+
 
     private static (AcpTurnRunner runner, AcpSession session, MemoryStream body) BuildHarness(
         ToolRegistry tools,
@@ -235,9 +235,9 @@ public sealed class AcpTurnRunnerTests
         return result;
     }
 
-    // ── Fixtures ───────────────────────────────────────────────────────────────
 
-    /// <summary>Tool that requires Ask-level permission so the forwarder pauses.</summary>
+
+
     private sealed class AskingTool : ITool
     {
         public string Name => "AskingTool";
@@ -250,10 +250,10 @@ public sealed class AcpTurnRunnerTests
             => Task.FromResult(ToolResult.Success("done"));
     }
 
-    /// <summary>
-    /// Plays a fixed sequence of LLM rounds. Each call to StreamChatAsync yields the
-    /// next list of chunks. After exhausting, returns a trivial done chunk forever.
-    /// </summary>
+
+
+
+
     private sealed class ScriptedLlm : ILlmClient
     {
         private readonly List<List<StreamChunk>> _rounds;

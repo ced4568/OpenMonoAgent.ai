@@ -71,12 +71,12 @@ public sealed class ConversationLoop : IDisposable
         }
         else
         {
-            // ACP mode: route AskPermissionAsync / AskUserAsync through the SSE forwarder
-            // instead of the terminal. We swap _input AND rebuild PermissionEngine on
-            // top of the adapter so PermissionEngine.CheckAsync's internal prompt hits
-            // the forwarder. The original `permissions` argument is unused in this
-            // branch — its session-scoped AllowAll cache belongs to the TUI session,
-            // not this ACP session.
+
+
+
+
+
+
             var adapter = new AcpInputReaderAdapter(interaction);
             _input = adapter;
             _permissions = new PermissionEngine(config, output, adapter);
@@ -93,11 +93,11 @@ public sealed class ConversationLoop : IDisposable
         _cache = cache ?? new ToolResultCache();
         _artifactStore = artifactStore ?? ArtifactStore.ForSession(session, config.DataDirectory);
         _sink = sink;
-        // Default to a sink-aware LocalToolExecutor so normal turns get tool_start /
-        // tool_end SSE events and result.Diff rendering. Callers can override (e.g.
-        // ToolDispatcher for Playbook execution which builds its own). The executor
-        // is constructed AFTER _permissions / _output are resolved so the ACP-mode
-        // PermissionEngine + InputReader adapter are picked up.
+
+
+
+
+
         _executor = executor ?? new LocalToolExecutor(
             _journal,
             _output,
@@ -125,11 +125,11 @@ public sealed class ConversationLoop : IDisposable
         return RunTurnInternalAsync(ct);
     }
 
-    /// <summary>
-    /// Resume an ACP turn after AcpTurnRunner has appended Tool messages for the client's tool_result
-    /// POST. Behaves like RunTurnAsync minus the user-message append and TurnCount increment — the
-    /// LLM picks up the existing [user, assistant+tool_calls, tool, ...] history.
-    /// </summary>
+
+
+
+
+
     public Task ContinueTurnAsync(CancellationToken ct) => RunTurnInternalAsync(ct);
 
     private async Task RunTurnInternalAsync(CancellationToken ct)
@@ -281,8 +281,8 @@ public sealed class ConversationLoop : IDisposable
                     if (tool is not null && tool.IsConcurrencySafe && tool.IsReadOnly)
                     {
                         _output.WriteDebug($"[P2.4] Starting {call.Name} while streaming...");
-                        // Task.Run keeps the executor's synchronous prep (JSON parse,
-                        // schema validate, sanity check) off the LLM-streaming thread.
+
+
                         inFlightTasks[call.Id] = Task.Run(
                             () => _executor.ExecuteAsync(call, tool, context, siblingAbortCts.Token),
                             siblingAbortCts.Token);
@@ -597,11 +597,11 @@ public sealed class ConversationLoop : IDisposable
         CancellationTokenSource siblingAbortCts,
         CancellationToken ct)
     {
-        // Note: an earlier strategy paused the LLM loop here by emitting tool_call events to a
-        // remote client and throwing PendingToolResultsException. The new ACP strategy runs every
-        // tool locally inside the agent container, so this method is only ever called with the
-        // synchronous LocalToolExecutor path. Pause-resume now lives in IAcpUserInteraction (T5)
-        // and only triggers for permission/AskUser, not tool execution.
+
+
+
+
+
         var results = new ToolResult[toolCalls.Count];
         var readOnlyPending = new List<(int Index, ToolCall Call, ITool Tool)>();
         var writeable = new List<(int Index, ToolCall Call, ITool Tool)>();

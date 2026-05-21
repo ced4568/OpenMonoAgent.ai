@@ -8,11 +8,11 @@ using OpenMono.Session;
 
 namespace OpenMono.Acp;
 
-/// <summary>
-/// HTTP surface for the ACP server. All endpoints live under <c>/api/v1</c>.
-/// Each handler is a single static method so the dependency wiring stays visible
-/// in one place and minimal-API parameter injection does the rest.
-/// </summary>
+
+
+
+
+
 public static class AcpEndpoints
 {
     public static void Map(WebApplication app)
@@ -25,7 +25,7 @@ public static class AcpEndpoints
         app.MapDelete("/api/v1/sessions/{id}", DeleteSession);
     }
 
-    // ── GET /api/v1/discovery ──────────────────────────────────────────────────
+
 
     private static IResult GetDiscovery(AcpLockFileWriter lockfile)
     {
@@ -41,7 +41,7 @@ public static class AcpEndpoints
         });
     }
 
-    // ── POST /api/v1/sessions ──────────────────────────────────────────────────
+
 
     private static async Task<IResult> PostSession(HttpContext ctx, AcpSessionStore store, AppConfig config)
     {
@@ -62,7 +62,7 @@ public static class AcpEndpoints
         return Results.Ok(new { session_id = session.Id, model = session.Model });
     }
 
-    // ── GET /api/v1/sessions/{id} ──────────────────────────────────────────────
+
 
     private static IResult GetSession(string id, AcpSessionStore store)
     {
@@ -78,7 +78,7 @@ public static class AcpEndpoints
         });
     }
 
-    // ── GET /api/v1/sessions/{id}/messages ─────────────────────────────────────
+
 
     private static IResult GetMessages(string id, AcpSessionStore store)
     {
@@ -87,7 +87,7 @@ public static class AcpEndpoints
         return Results.Ok(new MessagesEnvelope { Messages = ProjectMessages(session.Messages) });
     }
 
-    // ── POST /api/v1/sessions/{id}/turn ────────────────────────────────────────
+
 
     private static async Task PostTurn(
         HttpContext ctx,
@@ -102,8 +102,8 @@ public static class AcpEndpoints
             return;
         }
 
-        // 409 if a turn is already streaming on this session. Body parsing happens
-        // after the lock check so a client can't queue body work behind a held lock.
+
+
         if (!await session.TurnLock.WaitAsync(0, ctx.RequestAborted))
         {
             ctx.Response.StatusCode = StatusCodes.Status409Conflict;
@@ -149,9 +149,9 @@ public static class AcpEndpoints
                 }
                 else if (root.TryGetProperty("abort", out var abortEl) && abortEl.GetBoolean())
                 {
-                    // Abort is the one body shape that doesn't stream. It just cancels
-                    // pending pauses and returns 204; any concurrently-running turn (held
-                    // by the lock) finishes via ctx.RequestAborted on its own request.
+
+
+
                     session.CancelAllPending();
                     ctx.Response.StatusCode = StatusCodes.Status204NoContent;
                 }
@@ -170,10 +170,10 @@ public static class AcpEndpoints
         }
         catch (InvalidOperationException ex)
         {
-            // Resume*Async throws this for unknown ids / kind mismatches. If the SSE
-            // response was already started, surface as an `error` SSE event; otherwise
-            // return 400. We can't easily detect "already started" mid-stream, so write
-            // a structured error and let the writer no-op if headers already shipped.
+
+
+
+
             if (ctx.Response.HasStarted)
             {
                 var writer = new SseWriter(ctx.Response.Body, ctx.RequestAborted);
@@ -193,18 +193,18 @@ public static class AcpEndpoints
         }
     }
 
-    // ── DELETE /api/v1/sessions/{id} ───────────────────────────────────────────
+
 
     private static IResult DeleteSession(string id, AcpSessionStore store)
     {
         var session = store.TryGet(id);
-        if (session is null) return Results.NoContent(); // idempotent
+        if (session is null) return Results.NoContent();
         session.CancelAllPending();
         store.Delete(id);
         return Results.NoContent();
     }
 
-    // ── Helpers ────────────────────────────────────────────────────────────────
+
 
     private static void StartSseResponse(HttpContext ctx)
     {
@@ -213,12 +213,12 @@ public static class AcpEndpoints
         ctx.Response.Headers["X-Accel-Buffering"] = "no";
     }
 
-    /// <summary>
-    /// Project the persisted Messages list into the shape the extension's
-    /// HistoryMessage type expects. Tool messages are folded into the
-    /// preceding assistant message's toolCalls array (matched by ToolCallId)
-    /// so the chat UI can render them as expandable rows.
-    /// </summary>
+
+
+
+
+
+
     internal static List<HistoryMessageDto> ProjectMessages(IReadOnlyList<Message> messages)
     {
         var toolById = new Dictionary<string, Message>();
@@ -229,7 +229,7 @@ public static class AcpEndpoints
         var result = new List<HistoryMessageDto>();
         foreach (var m in messages)
         {
-            if (m.Role == MessageRole.Tool) continue;   // folded into the prior assistant
+            if (m.Role == MessageRole.Tool) continue;
 
             var role = m.Role switch
             {
@@ -288,7 +288,7 @@ public static class AcpEndpoints
 
     private static readonly JsonSerializerOptions JsonDefaults = new(JsonSerializerDefaults.Web);
 
-    // ── DTOs (camelCase enforced even if global naming policy changes) ─────────
+
 
     internal sealed record HistoryMessageDto
     {
