@@ -175,7 +175,7 @@ check_prerequisites() {
             printf "  ${YELLOW}⚠${NC}  %s\n" "$w"
         done
         echo ""
-        if ! docker info &>/dev/null 2>&1; then
+        if [ "$OPENMONO_ROLE" != "inference" ] && ! docker info &>/dev/null 2>&1; then
             err "Docker is installed but not accessible."
             die "Please restart Docker Desktop and try again."
         fi
