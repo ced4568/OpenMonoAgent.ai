@@ -35,7 +35,10 @@ On macOS the model runs natively against the Metal GPU and unified memory — th
 | 32 GB | Qwen3.5-9B-Q4_K_M | Dense | Lower |
 | 16 GB | Qwen3.5-9B-Q4_K_M | Dense | Lower |
 
-The 35B-A3B MoE activates only ~3B parameters per token, so on a high-bandwidth Apple Silicon chip it hits the same usable-to-fast range as a Linux GPU while keeping full accuracy. 16 GB is the minimum for native inference; below that, use the agent role and a remote inference box.
+The 35B-A3B MoE activates only ~3B parameters per token, so on a high-bandwidth Apple Silicon chip it hits the same usable-to-fast range as a Linux GPU while keeping full accuracy.
+
+> [!IMPORTANT]
+> Only the 64 GB+ tier (full-accuracy 35B) has been validated as stable. The installer will still configure the lower tiers, but **less than 64 GB is not encouraged** — they fall back to the 9B model with a much tighter context window. 16 GB is the hard floor for native inference; below that, use the agent role with a remote inference box.
 
 ---
 
@@ -82,15 +85,18 @@ Token generation is memory-bandwidth bound — **RAM channel count matters as mu
 
 > Halving RAM channels halves throughput. Always fill both DIMM slots.
 
-### Apple Silicon — Qwen3.6-35B-A3B-UD-Q4_K_XL (192K context, Metal)
+### Apple Silicon (Metal)
 
-Apple Silicon's unified memory has far higher bandwidth than a desktop CPU's DDR5, so the same MoE model that runs at ~20 tok/s on a NUC reaches GPU-class speeds here.
+Apple Silicon's unified memory has far higher bandwidth than a desktop CPU's DDR5, so the 35B-A3B MoE that runs at ~20 tok/s on a NUC reaches GPU-class speeds on a high-memory Mac.
 
-| Hardware | Unified memory | Bandwidth | tok/s |
-|----------|----------------|-----------|-------|
-| M5 Pro | 64 GB | ~307 GB/s | ~45–48 |
+| Hardware | Unified memory | Model | Context (vision on) | tok/s | Status |
+|----------|----------------|-------|---------------------|-------|--------|
+| M5 Pro | 64 GB | Qwen3.6-35B-A3B-UD-Q4_K_XL (full) | 192k (168k) | ~45–48 | ✅ Recommended / tested |
+| M1 Max | 32 GB | Qwen3.5-9B-Q4_K_M (lower) | 64k (48k) | ~22–27 | ⚠️ Not encouraged |
+| M4 | 16 GB | Qwen3.5-9B-Q4_K_M (lower) | 16k (12k) | ~12–16 | ⚠️ Not encouraged |
 
-> Speed scales with memory bandwidth. The 48 GB+ tier runs the full-accuracy 35B-A3B model; 16–32 GB Macs fall back to the 9B dense model.
+> [!IMPORTANT]
+> 64 GB+ unified memory is the recommended, tested configuration — full-accuracy 35B model at the full 192k context. The 32 GB and 16 GB tiers install and run, but **less than 64 GB is not encouraged** — they fall back to the 9B model with much tighter context windows. Below 16 GB, native inference doesn't install at all — use the agent role with a remote inference box.
 
 ### What the speeds feel like
 

@@ -7,7 +7,7 @@
 | **OS** | Ubuntu 26.04 LTS (recommended) · 25.10 · **macOS 14+** (Sonoma/Sequoia) |
 | **GPU mode** (Linux) | NVIDIA GPU · 12 GB VRAM minimum · 24 GB recommended |
 | **CPU mode** (Linux) | 24 GB RAM |
-| **Apple Silicon** (macOS) | M1+ · 16 GB unified memory minimum · 48 GB+ for full-accuracy 35B |
+| **Apple Silicon** (macOS) | M1+ · **64 GB+ unified memory recommended** (tested) · less than 64 GB not encouraged |
 | **Disk** | ~22 GB free (model + ~900 MB vision projector) |
 
 > [!NOTE]
@@ -240,14 +240,14 @@ Phase 1 installs, via Homebrew where needed:
 
 The installer reads `hw.memsize` and picks the model for your memory tier:
 
-| Unified memory | Model | Accuracy | Context (vision on) |
-|----------------|-------|----------|---------------------|
-| 48 GB+ | Qwen3.6-35B-A3B-UD-Q4_K_XL | Full | 192k (168k) |
-| 32 GB | Qwen3.5-9B-Q4_K_M | Lower | 64k (48k) |
-| 16 GB | Qwen3.5-9B-Q4_K_M | Lower | 16k (12k) |
+| Unified memory | Model | Accuracy | Context (vision on) | Status |
+|----------------|-------|----------|---------------------|--------|
+| 64 GB+ | Qwen3.6-35B-A3B-UD-Q4_K_XL | Full | 192k (168k) | ✅ Recommended / tested |
+| 32 GB | Qwen3.5-9B-Q4_K_M | Lower | 64k (48k) | ⚠️ Not encouraged |
+| 16 GB | Qwen3.5-9B-Q4_K_M | Lower | 16k (12k) | ⚠️ Not encouraged |
 
 > [!IMPORTANT]
-> 16 GB unified memory is the minimum for native inference. Below that, the full and inference roles refuse to install — use the **agent** role and point it at a separate inference server. As on Linux, vision (mmproj) is downloaded automatically and the context window is reduced slightly to keep the encoder within the memory budget.
+> **64 GB+ unified memory is the recommended, tested configuration** — full-accuracy 35B model at the full 192k context. The installer will still configure the 16 GB and 32 GB tiers (smaller 9B model, much tighter context), but **less than 64 GB is not encouraged** — they fall back to a smaller model with a much tighter context window. 16 GB is the hard floor: below it the full and inference roles refuse to install — use the **agent** role and point it at a separate inference server. As on Linux, vision (mmproj) downloads automatically and trims the context to keep the encoder within the memory budget.
 
 ### Intel Macs
 

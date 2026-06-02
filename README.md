@@ -198,16 +198,16 @@ Attach images in chat with `@screenshot.png` or ask the agent to read any image 
 
 Inference runs natively on the Metal GPU via llama.cpp — no Docker needed for the model. Model tier is picked from the unified memory size.
 
-| Unified memory | Model | Accuracy | Speed |
-|----------------|-------|----------|-------|
-| 48 GB+ | Qwen3.6-35B-A3B-UD-Q4_K_XL | Full | ~45–48 tok/s (M5 Pro, 64 GB) |
-| 32 GB | Qwen3.5-9B-Q4_K_M | Lower | ~30–40 tok/s |
-| 16 GB | Qwen3.5-9B-Q4_K_M | Lower | ~20–30 tok/s |
+| Unified memory | Model | Accuracy | Context (vision on) | Speed | Status |
+|----------------|-------|----------|---------------------|-------|--------|
+| 64 GB+ | Qwen3.6-35B-A3B-UD-Q4_K_XL | Full | 192k (168k) | ~45–48 tok/s (M5 Pro) | ✅ Recommended / tested |
+| 32 GB | Qwen3.5-9B-Q4_K_M | Lower | 64k (48k) | ~22–27 tok/s (M1 Max) | ⚠️ Not encouraged |
+| 16 GB | Qwen3.5-9B-Q4_K_M | Lower | 16k (12k) | ~12–16 tok/s (M4) | ⚠️ Not encouraged |
 
 > [!NOTE]
 > The installer detects your hardware and selects the right model automatically — no config needed. On Linux, 12 GB and 16 GB GPU cards are supported but run lower accuracy models; for best results use a 24 GB card. Linux requires Ubuntu 26.04 LTS (recommended) or 25.10.
 >
-> On **macOS**, the full and inference roles require Apple Silicon (M1+) with at least 16 GB unified memory; 48 GB+ unlocks the full-accuracy 35B model. Intel Macs are supported in **agent-only** mode (connect to a separate inference box). macOS 14+ (Sonoma/Sequoia) recommended.
+> On **macOS**, the full and inference roles require Apple Silicon (M1+). **64 GB+ unified memory is the recommended, tested configuration** — full-accuracy 35B model at the full 192k context. Less than 64 GB is not encouraged — the installer falls back to a smaller model with a much tighter context window. Intel Macs are supported in **agent-only** mode (connect to a separate inference box). macOS 14+ (Sonoma/Sequoia) recommended.
 
 ## Architecture
 
