@@ -32,6 +32,21 @@
 </div>
 
 ---
+## SynthosAI Local — Enterprise Deployment
+
+> Need this running in a regulated environment where data can't leave your network?
+
+**[Synthos Systems](https://synthossystems.com)** provides enterprise deployment, configuration, custom playbooks, and ongoing support for OpenMonoAgent in manufacturing, healthcare, defense, and financial services environments.
+
+**Industries served:**
+- 🏭 Manufacturing & Industrial — OT/IT environments, air-gapped facilities
+- 🏥 Healthcare — HIPAA-compliant, zero external data transmission
+- 🛡️ Defense & Government — classified networks, export-controlled environments
+- 🏦 Financial Services — SOC2/PCI-DSS compliance boundaries
+
+**[→ Learn more about SynthosAI Local](./SYNTHOS.md)** · **[Contact Synthos Systems](https://synthossystems.com)**
+
+---
 
 OpenMono is a coding agent that runs entirely on your hardware — no subscriptions, no data leaving your network, no per-token billing. It pairs a .NET 10 CLI with its own llama.cpp inference server, giving you a full agentic loop with 20 built-in tools, Docker sandboxing, and deep code intelligence. NVIDIA GPU, CPU, or Apple Silicon (Metal) — it auto-configures itself. You own the model, the compute, and the data.
 
